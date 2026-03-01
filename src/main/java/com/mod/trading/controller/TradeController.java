@@ -45,6 +45,18 @@ public class TradeController {
         }
     }
 
+    // DELETE /api/trade/orders/{alpacaOrderId}
+    @DeleteMapping("/api/trade/orders/{alpacaOrderId}")
+    public ResponseEntity<?> cancelOrder(@PathVariable String alpacaOrderId,
+                                         @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            return ResponseEntity.ok(alpacaService.cancelOrder(alpacaOrderId, userDetails.getUsername()));
+        } catch (Exception e) {
+            log.error("Cancel error: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // GET /api/trade/orders/alpaca
     @GetMapping("/api/trade/orders/alpaca")
     public ResponseEntity<?> getAlpacaOrders(@AuthenticationPrincipal UserDetails userDetails) {

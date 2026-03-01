@@ -110,6 +110,30 @@ public class AlpacaService {
         return orderRepository.save(order);
     }
 
+    // Cancel order on Alpaca and update local DB
+    public TradeOrder cancelOrder(String alpacaOrderId, String username) throws Exception {
+        User user = getUser(username);
+
+        TradeOrder order = orderRepository.findByAlpacaOrderId(alpacaOrderId)
+                .orElseThrow(() -> new RuntimeException("Order not found: " + alpacaOrderId));
+
+        HttpRequest httpRequest = HttpRequest.newBuilder()
+                .uri(URI.create(user.getAlpacaBaseUrl() + "/v2/orders/" + alpacaOrderId))
+                .header("APCA-API-KEY-ID", user.getAlpacaApiKey())
+                .header("APCA-API-SECRET-KEY", user.getAlpacaApiSecret())
+                .DELETE()
+                .build();
+
+        HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() == 204) {
+            order.setOrderStatus("cancelled");
+            return orderRepository.save(order);
+        }
+
+        throw new RuntimeException("Alpaca error [" + response.statusCode() + "]: " + response.body());
+    }
+
     // Account Information
     public Map<String, Object> getAccount(String username) throws Exception {
         User user = getUser(username);

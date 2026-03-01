@@ -38,9 +38,9 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            pkill -f "trading" || true
-            sleep 2
             cd /home/ubuntu/trading_app
+            fuser -k 8080/tcp || true
+            sleep 2
             nohup java \
               -DDB_URL="${{ secrets.DB_URL }}" \
               -DDB_USER="${{ secrets.DB_USER }}" \

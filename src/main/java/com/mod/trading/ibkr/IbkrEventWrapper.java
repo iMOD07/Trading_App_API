@@ -1,6 +1,12 @@
 package com.mod.trading.ibkr;
 
-import com.ib.client.*;
+import com.ib.client.Contract;
+import com.ib.client.Decimal;
+import com.ib.client.DefaultEWrapper;
+import com.ib.client.EClientSocket;
+import com.ib.client.Execution;
+import com.ib.client.Order;
+import com.ib.client.OrderState;
 import com.mod.trading.config.TradeWebSocketHandler;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Slf4j
 @Component
-public class IbkrEventWrapper extends DefaultEWrapper {
+public class IbkrEventWrapper extends com.ib.client.DefaultEWrapper {
 
     @Setter
     private EClientSocket clientSocket;
@@ -162,7 +168,7 @@ public class IbkrEventWrapper extends DefaultEWrapper {
     // ============================================================
 
     @Override
-    public void error(int id, int errorCode, String errorMsg, String advancedOrderRejectJson) {
+    public void error(int id, long errorTime, int errorCode, String errorMsg, String advancedOrderRejectJson) {
         // IBKR uses error() also for informational messages (codes 2104-2158)
         if (errorCode >= 2100 && errorCode < 2200) {
             log.debug("IBKR info [{}]: {}", errorCode, errorMsg);
@@ -174,8 +180,7 @@ public class IbkrEventWrapper extends DefaultEWrapper {
         // Fail any pending future tied to this id (orderId or reqId)
         CompletableFuture<OrderAck> orderFuture = pendingOrders.remove(id);
         if (orderFuture != null && !orderFuture.isDone()) {
-            orderFuture.completeExceptionally(
-                    new IbkrException(errorCode, errorMsg));
+            orderFuture.completeExceptionally(new IbkrException(errorCode, errorMsg));
         }
         CompletableFuture<Map<String, String>> acctFuture = pendingAccountReqs.remove(id);
         if (acctFuture != null && !acctFuture.isDone()) {

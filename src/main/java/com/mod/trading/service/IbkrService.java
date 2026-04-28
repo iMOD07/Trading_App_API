@@ -217,7 +217,7 @@ public class IbkrService {
 
         log.info("Cancelling IBKR order parentId={}", order.getIbkrParentOrderId());
         // OrderCancel is the modern API; fall back to legacy if your TWS API jar is older.
-        connectionManager.getClient().cancelOrder(order.getIbkrParentOrderId(), "");
+        connectionManager.getClient().cancelOrder(order.getIbkrParentOrderId(), new com.ib.client.OrderCancel());
     }
 
     public Map<String, String> getAccountSummary(String username) {

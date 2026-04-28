@@ -5,22 +5,23 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.2</version>
+        <!-- Stable production version instead of 4.0.2 -->
+        <version>3.4.1</version>
         <relativePath/>
     </parent>
 
     <groupId>com.mod</groupId>
     <artifactId>trading</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>Trading Bot By Mohammed</name>
     <description>Trading shares under certain conditions</description>
 
     <properties>
         <java.version>17</java.version>
+        <resilience4j.version>2.2.0</resilience4j.version>
     </properties>
 
     <dependencies>
-
         <!-- Spring Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -57,6 +58,12 @@
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
 
+        <!-- AOP for @Retry / @CircuitBreaker -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- PostgreSQL -->
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -64,12 +71,14 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- DevTools -->
+        <!-- Flyway for DB migrations (replaces ddl-auto=update) -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-devtools</artifactId>
-            <scope>runtime</scope>
-            <optional>true</optional>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
         <!-- Lombok -->
@@ -83,6 +92,10 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
         <!-- JWT -->
@@ -104,29 +117,24 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Resilience4j: Retry + Circuit Breaker -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-
-        <!-- IBKR TWS API (Official JAR - place TwsApi.jar in trading/lib/) -->
         <dependency>
-            <groupId>com.interactivebrokers</groupId>
-            <artifactId>tws-api</artifactId>
-            <version>10.19</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/TwsApi.jar</systemPath>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
         </dependency>
-
-        <!-- Google Protobuf - TwsApi 10.37 -->
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <version>4.29.3</version>
-        </dependency>
-
     </dependencies>
 
     <build>
@@ -147,7 +155,6 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <includeSystemScope>true</includeSystemScope>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
@@ -158,5 +165,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

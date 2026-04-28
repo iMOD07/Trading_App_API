@@ -2,17 +2,23 @@ package com.mod.trading.service;
 
 import com.mod.trading.entity.Role;
 import com.mod.trading.entity.User;
-import com.mod.trading.model.response.AuthResponse;
-import com.mod.trading.model.request.LoginRequest;
-import com.mod.trading.model.request.RegisterRequest;
+import com.mod.trading.exception.BusinessException;
+import com.mod.trading.exception.UserNotFoundException;
+import com.mod.trading.model.AuthResponse;
+import com.mod.trading.model.LoginRequest;
+import com.mod.trading.model.RegisterRequest;
+import com.mod.trading.model.UpdateProfileRequest;
 import com.mod.trading.repository.UserRepository;
 import com.mod.trading.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -21,72 +27,78 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
-    private final IbkrConnectionPool connectionPool;
 
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Username already exists");
+            throw new BusinessException("Username already exists");
         }
 
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setAlpacaApiKey(request.getAlpacaApiKey());
+        user.setAlpacaApiSecret(request.getAlpacaApiSecret());
+        if (request.getAlpacaBaseUrl() != null && !request.getAlpacaBaseUrl().isBlank()) {
+            user.setAlpacaBaseUrl(request.getAlpacaBaseUrl());
+        }
         user.setRole(Role.USER);
-        user.setActive(false); // Admin يفعّله
-        user.setIbkrAccount(request.getIbkrAccount());
-        user.setIbkrHost(request.getIbkrHost());
-        user.setIbkrPort(request.getIbkrPort());
-        user.setIbkrClientId(request.getIbkrClientId());
+        user.setActive(false); // requires admin activation
 
         userRepository.save(user);
+        log.info("New user registered: {}", user.getUsername());
 
-        // ملاحظة: الاتصال لا يُفتح هنا - ينتظر Admin يفعّل اليوزر
-        //
         String token = jwtService.generateToken(user.getUsername());
-        return new AuthResponse(token, user.getUsername(), user.getRole());
+        return new AuthResponse(token, user.getUsername(), user.getRole(),
+                jwtService.getExpirationMillis() / 1000);
     }
 
-    public AuthResponse update(RegisterRequest request) {
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    /**
+     * Updates the authenticated user's own profile only.
+     * The username is taken from the authenticated principal, never from the request body.
+     */
+    @Transactional
+    public AuthResponse updateProfile(String authenticatedUsername, UpdateProfileRequest request) {
+        User user = userRepository.findByUsername(authenticatedUsername)
+                .orElseThrow(() -> new UserNotFoundException(authenticatedUsername));
 
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
-
-        // لو غيّر إعدادات IBKR → أعد الاتصال
-        boolean ibkrChanged = false;
-        if (request.getIbkrHost() != null && !request.getIbkrHost().isBlank()) {
-            user.setIbkrHost(request.getIbkrHost());
-            user.setIbkrPort(request.getIbkrPort());
-            user.setIbkrClientId(request.getIbkrClientId());
-            user.setIbkrAccount(request.getIbkrAccount());
-            ibkrChanged = true;
+        if (request.getAlpacaApiKey() != null && !request.getAlpacaApiKey().isBlank()) {
+            user.setAlpacaApiKey(request.getAlpacaApiKey());
+        }
+        if (request.getAlpacaApiSecret() != null && !request.getAlpacaApiSecret().isBlank()) {
+            user.setAlpacaApiSecret(request.getAlpacaApiSecret());
+        }
+        if (request.getAlpacaBaseUrl() != null && !request.getAlpacaBaseUrl().isBlank()) {
+            user.setAlpacaBaseUrl(request.getAlpacaBaseUrl());
         }
 
         userRepository.save(user);
-
-        if (ibkrChanged && user.isActive()) {
-            connectionPool.openConnection(user);
-        }
+        log.info("Profile updated: {}", user.getUsername());
 
         String token = jwtService.generateToken(user.getUsername());
-        return new AuthResponse(token, user.getUsername(), user.getRole());
+        return new AuthResponse(token, user.getUsername(), user.getRole(),
+                jwtService.getExpirationMillis() / 1000);
     }
 
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException(request.getUsername()));
 
         if (!user.isActive()) {
-            throw new RuntimeException("User Not Active, Call Supervisor");
+            throw new BusinessException("Account not activated. Contact administrator.");
         }
 
+        // Throws BadCredentialsException if password is wrong
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
 
         String token = jwtService.generateToken(user.getUsername());
-        return new AuthResponse(token, user.getUsername(), user.getRole());
+        log.info("User logged in: {}", user.getUsername());
+        return new AuthResponse(token, user.getUsername(), user.getRole(),
+                jwtService.getExpirationMillis() / 1000);
     }
 }

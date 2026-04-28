@@ -1,4 +1,4 @@
-package com.mod.trading.model.response;
+package com.mod.trading.model;
 
 import com.mod.trading.entity.Role;
 import lombok.AllArgsConstructor;
@@ -10,5 +10,5 @@ public class AuthResponse {
     private String token;
     private String username;
     private Role role;
-
+    private long expiresIn; // seconds
 }

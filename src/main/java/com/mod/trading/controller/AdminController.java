@@ -3,6 +3,7 @@ package com.mod.trading.controller;
 import com.mod.trading.entity.Role;
 import com.mod.trading.entity.User;
 import com.mod.trading.repository.UserRepository;
+import com.mod.trading.service.IbkrConnectionPool;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,52 +19,56 @@ import java.util.Map;
 public class AdminController {
 
     private final UserRepository userRepository;
+    private final IbkrConnectionPool connectionPool;
 
-    // GET /api/admin/users
+    // ── Users ──────────────────────────────────────────────────────────────────
+
     @GetMapping("/users")
-    public ResponseEntity<List<User>> getAllUsers() {
+    public ResponseEntity<List<User>> getUsers() {
         return ResponseEntity.ok(userRepository.findAll());
     }
 
-    // POST /api/admin/users/{id}/activate
+    // لما Admin يفعّل يوزر → يفتح له IBKR connection تلقائياً
     @PostMapping("/users/{id}/activate")
-    public ResponseEntity<?> activateUser(@PathVariable Long id) {
-        return toggleActive(id, true);
+    public ResponseEntity<?> activate(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setActive(true);
+        userRepository.save(user);
+
+        // افتح الاتصال فوراً
+        connectionPool.openConnection(user);
+
+        return ResponseEntity.ok(Map.of("message", "User activated and IBKR connection opened"));
     }
 
-    // POST /api/admin/users/{id}/deactivate
+    // لما Admin يوقف يوزر → يغلق الاتصال
     @PostMapping("/users/{id}/deactivate")
-    public ResponseEntity<?> deactivateUser(@PathVariable Long id) {
-        return toggleActive(id, false);
+    public ResponseEntity<?> deactivate(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setActive(false);
+        userRepository.save(user);
+
+        // أغلق الاتصال
+        connectionPool.closeConnection(id);
+
+        return ResponseEntity.ok(Map.of("message", "User deactivated and IBKR connection closed"));
     }
 
-    // POST /api/admin/users/{id}/role
     @PostMapping("/users/{id}/role")
-    public ResponseEntity<?> changeRole(@PathVariable Long id,
-                                        @RequestBody Map<String, String> body) {
-        try {
-            User user = userRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-            user.setRole(Role.valueOf(body.get("role").toUpperCase()));
-            userRepository.save(user);
-            return ResponseEntity.ok(Map.of("message", "Role updated to " + user.getRole()));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+    public ResponseEntity<?> changeRole(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setRole(Role.valueOf(body.get("role").toUpperCase()));
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of("message", "Role updated"));
     }
 
-    // =============================================
+    // ── Connection Pool Stats ──────────────────────────────────────────────────
 
-    private ResponseEntity<?> toggleActive(Long id, boolean active) {
-        try {
-            User user = userRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-            user.setActive(active);
-            userRepository.save(user);
-            String status = active ? "activated" : "deactivated";
-            return ResponseEntity.ok(Map.of("message", "User " + user.getUsername() + " " + status));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+    @GetMapping("/connections")
+    public ResponseEntity<?> getConnectionStats() {
+        return ResponseEntity.ok(connectionPool.getStats());
     }
 }

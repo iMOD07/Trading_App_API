@@ -9,9 +9,9 @@ import java.util.Optional;
 
 @Repository
 public interface TradeOrderRepository extends JpaRepository<TradeOrder, Long> {
-
     List<TradeOrder> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<TradeOrder> findByUserIdAndSymbolOrderByCreatedAtDesc(Long userId, String symbol);
     List<TradeOrder> findTop10ByUserIdOrderByCreatedAtDesc(Long userId);
-    Optional<TradeOrder> findByAlpacaOrderId(String alpacaOrderId);
+    Optional<TradeOrder> findByIbkrOrderId(String ibkrOrderId);
+    List<TradeOrder> findByPendingTrue(); // ← الأوامر المعلقة
 }

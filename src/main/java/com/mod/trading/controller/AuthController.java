@@ -1,8 +1,8 @@
 package com.mod.trading.controller;
 
-import com.mod.trading.model.AuthResponse;
-import com.mod.trading.model.LoginRequest;
-import com.mod.trading.model.RegisterRequest;
+import com.mod.trading.model.response.AuthResponse;
+import com.mod.trading.model.request.LoginRequest;
+import com.mod.trading.model.request.RegisterRequest;
 import com.mod.trading.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,8 +24,8 @@ public class AuthController {
         try {
             AuthResponse response = authService.register(request);
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception error) {
+            return ResponseEntity.badRequest().body(Map.of("error", error.getMessage()));
         }
     }
 
@@ -34,8 +34,8 @@ public class AuthController {
         try {
             AuthResponse response = authService.update(update);
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error" , e.getMessage()));
+        } catch (Exception error) {
+            return ResponseEntity.badRequest().body(Map.of("error" , error.getMessage()));
         }
     }
 
@@ -45,8 +45,8 @@ public class AuthController {
         try {
             AuthResponse response = authService.login(request);
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception error) {
+            return ResponseEntity.badRequest().body(Map.of("error", error.getMessage()));
         }
     }
 }

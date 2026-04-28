@@ -31,17 +31,6 @@ public class User {
     @Column(nullable = false)
     private Role role = Role.USER;
 
-    // key Alpaca
-    @Column(name = "alpaca_api_key")
-    private String alpacaApiKey;
-
-    @Column(name = "alpaca_api_secret")
-    private String alpacaApiSecret;
-
-    @Column(name = "alpaca_base_url")
-    private String alpacaBaseUrl = "https://paper-api.alpaca.markets";
-
-    // Setting Trading by User
     @Column(name = "trade_amount")
     private double tradeAmount = 500;
 
@@ -51,6 +40,18 @@ public class User {
     @Column(name = "profit_percent")
     private double profitPercent = 6;
 
+    @Column(name = "ibkr_account", nullable = false)
+    private String IbkrAccount;
+
+    @Column(name = "ibkr_host", nullable = false)
+    private String ibkrHost ;
+
+    @Column(name = "ibkr_port", nullable = false)
+    private int ibkrPort ;
+
+    @Column(name = "ibkr_client_id", nullable = false)
+    private int ibkrClientId ;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -58,4 +59,5 @@ public class User {
     @JsonIgnore
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<TradeOrder> orders;
+
 }

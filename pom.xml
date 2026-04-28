@@ -111,6 +111,22 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- IBKR TWS API (Official JAR - place TwsApi.jar in trading/lib/) -->
+        <dependency>
+            <groupId>com.interactivebrokers</groupId>
+            <artifactId>tws-api</artifactId>
+            <version>10.19</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/TwsApi.jar</systemPath>
+        </dependency>
+
+        <!-- Google Protobuf - TwsApi 10.37 -->
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>4.29.3</version>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -131,6 +147,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <includeSystemScope>true</includeSystemScope>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>

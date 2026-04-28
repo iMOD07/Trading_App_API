@@ -1,4 +1,4 @@
-package com.mod.trading.model;
+package com.mod.trading.model.response;
 
 import com.mod.trading.entity.Role;
 import lombok.AllArgsConstructor;

@@ -1,4 +1,4 @@
-package com.mod.trading.model;
+package com.mod.trading.model.request;
 
 import jakarta.validation.constraints.Positive;
 import lombok.Data;
@@ -14,4 +14,5 @@ public class SettingsRequest {
 
     @Positive
     private double profitPercent;
+
 }

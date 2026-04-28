@@ -1,4 +1,4 @@
-package com.mod.trading.model;
+package com.mod.trading.model.request;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;

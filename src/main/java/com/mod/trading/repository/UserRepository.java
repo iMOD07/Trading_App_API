@@ -1,5 +1,6 @@
 package com.mod.trading.repository;
 
+import com.mod.trading.entity.Role;
 import com.mod.trading.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -11,5 +12,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
     boolean existsByUsername(String username);
     Optional<User> findByUsernameAndActiveTrue(String username);
-
+    Optional<User> findFirstByRole(Role role);
 }

@@ -16,14 +16,13 @@ public class TradeOrder {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // مرتبط بالمستخدم
-    // User-related
+    // User
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @JsonIgnore
     private User user;
 
-    // Stock Information
+    // Stock Info
     @Column(nullable = false)
     private String symbol;
 
@@ -32,18 +31,23 @@ public class TradeOrder {
     private double tradeAmount;
     private double profitPercent;
 
-    // Price
+    // Prices
     private double stopPrice;
     private double limitPrice;
     private double takeProfit;
     private double stopLoss;
 
-    //Reply from Alpaca
-    @Column(name = "alpaca_order_id")
-    private String alpacaOrderId;
+    // IBKR
+    @Column(name = "ibkr_order_id")
+    private String ibkrOrderId;
 
     @Column(name = "order_status")
     private String orderStatus;
+
+    // PENDING = محفوظ ينتظر Gateway يرجع online
+    // لو PENDING هذا الـ flag يكون true
+    @Column(name = "is_pending", nullable = false)
+    private boolean pending = false;
 
     @Column(columnDefinition = "TEXT")
     private String rawResponse;
@@ -58,5 +62,14 @@ public class TradeOrder {
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    // Helper - هل الأمر قابل للإلغاء؟
+    @Transient
+    public boolean isCancellable() {
+        return ibkrOrderId != null &&
+                (orderStatus != null &&
+                        (orderStatus.equalsIgnoreCase("PreSubmitted") ||
+                                orderStatus.equalsIgnoreCase("Submitted")));
     }
 }

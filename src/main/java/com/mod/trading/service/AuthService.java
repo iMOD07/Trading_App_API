@@ -37,13 +37,11 @@ public class AuthService {
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setAlpacaApiKey(request.getAlpacaApiKey());
-        user.setAlpacaApiSecret(request.getAlpacaApiSecret());
-        if (request.getAlpacaBaseUrl() != null && !request.getAlpacaBaseUrl().isBlank()) {
-            user.setAlpacaBaseUrl(request.getAlpacaBaseUrl());
+        if (request.getIbkrAccountId() != null && !request.getIbkrAccountId().isBlank()) {
+            user.setIbkrAccountId(request.getIbkrAccountId());
         }
         user.setRole(Role.USER);
-        user.setActive(false); // requires admin activation
+        user.setActive(false);
 
         userRepository.save(user);
         log.info("New user registered: {}", user.getUsername());
@@ -53,10 +51,6 @@ public class AuthService {
                 jwtService.getExpirationMillis() / 1000);
     }
 
-    /**
-     * Updates the authenticated user's own profile only.
-     * The username is taken from the authenticated principal, never from the request body.
-     */
     @Transactional
     public AuthResponse updateProfile(String authenticatedUsername, UpdateProfileRequest request) {
         User user = userRepository.findByUsername(authenticatedUsername)
@@ -65,14 +59,8 @@ public class AuthService {
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
-        if (request.getAlpacaApiKey() != null && !request.getAlpacaApiKey().isBlank()) {
-            user.setAlpacaApiKey(request.getAlpacaApiKey());
-        }
-        if (request.getAlpacaApiSecret() != null && !request.getAlpacaApiSecret().isBlank()) {
-            user.setAlpacaApiSecret(request.getAlpacaApiSecret());
-        }
-        if (request.getAlpacaBaseUrl() != null && !request.getAlpacaBaseUrl().isBlank()) {
-            user.setAlpacaBaseUrl(request.getAlpacaBaseUrl());
+        if (request.getIbkrAccountId() != null && !request.getIbkrAccountId().isBlank()) {
+            user.setIbkrAccountId(request.getIbkrAccountId());
         }
 
         userRepository.save(user);
@@ -91,7 +79,6 @@ public class AuthService {
             throw new BusinessException("Account not activated. Contact administrator.");
         }
 
-        // Throws BadCredentialsException if password is wrong
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );

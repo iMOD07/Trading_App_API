@@ -1,5 +1,6 @@
 package com.mod.trading.exception;
 
+import com.mod.trading.ibkr.IbkrException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,10 +34,15 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
-    @ExceptionHandler(AlpacaApiException.class)
-    public ResponseEntity<Map<String, Object>> handleAlpacaError(AlpacaApiException ex) {
-        log.warn("Alpaca API error: status={}, message={}", ex.getStatusCode(), ex.getMessage());
-        return error(HttpStatus.BAD_GATEWAY, ex.getMessage());
+    @ExceptionHandler(IbkrException.class)
+    public ResponseEntity<Map<String, Object>> handleIbkrError(IbkrException ex) {
+        log.warn("IBKR error: code={}, message={}", ex.getErrorCode(), ex.getMessage());
+        HttpStatus status = switch (ex.getErrorCode()) {
+            case 200, 201, 202, 203 -> HttpStatus.BAD_REQUEST;
+            case 502, 504, 1100, 1101, 1102, -1 -> HttpStatus.SERVICE_UNAVAILABLE;
+            default -> HttpStatus.BAD_GATEWAY;
+        };
+        return error(status, ex.getMessage());
     }
 
     @ExceptionHandler(BadCredentialsException.class)

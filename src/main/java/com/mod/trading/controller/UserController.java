@@ -12,11 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
@@ -26,9 +22,6 @@ public class UserController {
     private final AuthService authService;
     private final UserRepository userRepository;
 
-    /**
-     * Get current authenticated user's profile.
-     */
     @GetMapping("/me")
     public ResponseEntity<UserDto> getMe(@AuthenticationPrincipal UserDetails userDetails) {
         User user = userRepository.findByUsername(userDetails.getUsername())
@@ -36,10 +29,6 @@ public class UserController {
         return ResponseEntity.ok(UserDto.from(user));
     }
 
-    /**
-     * Update the authenticated user's profile.
-     * The username is taken from the authenticated principal, NOT from the request body.
-     */
     @PutMapping("/me")
     public ResponseEntity<AuthResponse> updateMe(@AuthenticationPrincipal UserDetails userDetails,
                                                   @Valid @RequestBody UpdateProfileRequest request) {

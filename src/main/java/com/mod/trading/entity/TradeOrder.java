@@ -15,7 +15,8 @@ import java.time.LocalDateTime;
 @Table(name = "trade_orders", indexes = {
         @Index(name = "idx_orders_user_created", columnList = "user_id, created_at DESC"),
         @Index(name = "idx_orders_user_symbol", columnList = "user_id, symbol"),
-        @Index(name = "idx_orders_alpaca_id", columnList = "alpaca_order_id"),
+        @Index(name = "idx_orders_parent", columnList = "ibkr_parent_order_id"),
+        @Index(name = "idx_orders_perm", columnList = "ibkr_perm_id"),
         @Index(name = "idx_orders_client_order_id", columnList = "client_order_id", unique = true)
 })
 public class TradeOrder {
@@ -30,7 +31,8 @@ public class TradeOrder {
     private User user;
 
     /**
-     * Idempotency key sent to Alpaca to prevent duplicate orders on retry.
+     * Our internal correlation ID. Survives across reconnects.
+     * IBKR's permId serves a similar role on their side.
      */
     @Column(name = "client_order_id", nullable = false, unique = true, length = 64)
     private String clientOrderId;
@@ -62,15 +64,30 @@ public class TradeOrder {
     @Column(name = "stop_loss", precision = 19, scale = 4)
     private BigDecimal stopLoss;
 
-    @Column(name = "alpaca_order_id", length = 100)
-    private String alpacaOrderId;
+    /**
+     * IBKR's bracket order is 3 linked orders.
+     * - parent: STP LMT entry (BUY)
+     * - takeProfit: LMT exit (SELL)
+     * - stopLoss: STP exit (SELL)
+     */
+    @Column(name = "ibkr_parent_order_id")
+    private Integer ibkrParentOrderId;
+
+    @Column(name = "ibkr_take_profit_order_id")
+    private Integer ibkrTakeProfitOrderId;
+
+    @Column(name = "ibkr_stop_loss_order_id")
+    private Integer ibkrStopLossOrderId;
+
+    /**
+     * IBKR's permanent ID - survives reconnects and identifies the order
+     * uniquely across the IBKR system. Use this for reconciliation.
+     */
+    @Column(name = "ibkr_perm_id")
+    private Long ibkrPermId;
 
     @Column(name = "order_status", length = 50)
     private String orderStatus;
-
-    @JsonIgnore
-    @Column(name = "raw_response", columnDefinition = "TEXT")
-    private String rawResponse;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)

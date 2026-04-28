@@ -3,7 +3,7 @@ package com.mod.trading.controller;
 import com.mod.trading.entity.TradeOrder;
 import com.mod.trading.model.SettingsRequest;
 import com.mod.trading.model.TradeRequest;
-import com.mod.trading.service.AlpacaService;
+import com.mod.trading.service.IbkrService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -20,22 +20,24 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TradeController {
 
-    private final AlpacaService alpacaService;
+    private final IbkrService ibkrService;
 
     @PostMapping("/api/trade/order")
     public ResponseEntity<TradeOrder> placeOrder(@Valid @RequestBody TradeRequest request,
                                                  @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(alpacaService.placeOrder(request, userDetails.getUsername()));
+        return ResponseEntity.ok(ibkrService.placeOrder(request, userDetails.getUsername()));
+    }
+
+    @PostMapping("/api/trade/orders/{id}/cancel")
+    public ResponseEntity<Map<String, String>> cancelOrder(@PathVariable Long id,
+                                                            @AuthenticationPrincipal UserDetails userDetails) {
+        ibkrService.cancelOrder(id, userDetails.getUsername());
+        return ResponseEntity.ok(Map.of("message", "Cancel request sent"));
     }
 
     @GetMapping("/api/trade/account")
     public ResponseEntity<?> getAccount(@AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(alpacaService.getAccount(userDetails.getUsername()));
-    }
-
-    @GetMapping("/api/trade/orders/alpaca")
-    public ResponseEntity<?> getAlpacaOrders(@AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(alpacaService.getAlpacaOrders(userDetails.getUsername()));
+        return ResponseEntity.ok(ibkrService.getAccountSummary(userDetails.getUsername()));
     }
 
     @GetMapping("/api/trade/orders")
@@ -43,12 +45,12 @@ public class TradeController {
                                                          @RequestParam(defaultValue = "0") int page,
                                                          @RequestParam(defaultValue = "50") int size) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 200));
-        return ResponseEntity.ok(alpacaService.getOrders(userDetails.getUsername(), pageable));
+        return ResponseEntity.ok(ibkrService.getOrders(userDetails.getUsername(), pageable));
     }
 
     @GetMapping("/api/trade/orders/last")
     public ResponseEntity<List<TradeOrder>> getLastOrders(@AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(alpacaService.getLastOrders(userDetails.getUsername()));
+        return ResponseEntity.ok(ibkrService.getLastOrders(userDetails.getUsername()));
     }
 
     @GetMapping("/api/trade/orders/symbol/{symbol}")
@@ -57,18 +59,23 @@ public class TradeController {
                                                               @RequestParam(defaultValue = "0") int page,
                                                               @RequestParam(defaultValue = "50") int size) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 200));
-        return ResponseEntity.ok(alpacaService.getOrdersBySymbol(userDetails.getUsername(), symbol, pageable));
+        return ResponseEntity.ok(ibkrService.getOrdersBySymbol(userDetails.getUsername(), symbol, pageable));
+    }
+
+    @GetMapping("/api/trade/connection")
+    public ResponseEntity<Map<String, Object>> connectionStatus() {
+        return ResponseEntity.ok(Map.of("ibkrConnected", ibkrService.isConnected()));
     }
 
     @GetMapping("/api/settings")
     public ResponseEntity<?> getSettings(@AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(alpacaService.getSettings(userDetails.getUsername()));
+        return ResponseEntity.ok(ibkrService.getSettings(userDetails.getUsername()));
     }
 
     @PostMapping("/api/settings")
     public ResponseEntity<?> updateSettings(@Valid @RequestBody SettingsRequest request,
                                             @AuthenticationPrincipal UserDetails userDetails) {
-        alpacaService.updateSettings(
+        ibkrService.updateSettings(
                 userDetails.getUsername(),
                 request.getTradeAmount(),
                 request.getRangeValue(),

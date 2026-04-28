@@ -1,7 +1,6 @@
 package com.mod.trading.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.mod.trading.util.EncryptedStringConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -37,22 +36,19 @@ public class User {
     @Column(nullable = false, length = 20)
     private Role role = Role.USER;
 
-    // Alpaca credentials - encrypted at rest, never serialized to JSON
-    @JsonIgnore
-    @Convert(converter = EncryptedStringConverter.class)
-    @Column(name = "alpaca_api_key", length = 512)
-    private String alpacaApiKey;
+    /**
+     * IBKR account number (e.g. "U1234567" or "DU1234567" for paper).
+     * The IB Gateway handles authentication via the operator's credentials,
+     * NOT per-user. This field tells us WHICH sub-account to trade in for
+     * Financial Advisor / multi-account setups.
+     *
+     * For a single-account setup, this can be null and trades go to the
+     * default account.
+     */
+    @Column(name = "ibkr_account_id", length = 50)
+    private String ibkrAccountId;
 
-    @JsonIgnore
-    @Convert(converter = EncryptedStringConverter.class)
-    @Column(name = "alpaca_api_secret", length = 512)
-    private String alpacaApiSecret;
-
-    @JsonIgnore
-    @Column(name = "alpaca_base_url", length = 200)
-    private String alpacaBaseUrl = "https://paper-api.alpaca.markets";
-
-    // BigDecimal for money - never use double for monetary values
+    // Trading parameters - BigDecimal for monetary precision
     @Column(name = "trade_amount", precision = 19, scale = 4, nullable = false)
     private BigDecimal tradeAmount = new BigDecimal("500.0000");
 

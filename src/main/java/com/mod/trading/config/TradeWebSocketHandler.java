@@ -19,8 +19,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class TradeWebSocketHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper;
-
-    /** Sessions grouped by username so we can target broadcasts. */
     private final Map<String, CopyOnWriteArrayList<WebSocketSession>> sessionsByUser =
             new ConcurrentHashMap<>();
 
@@ -28,7 +26,6 @@ public class TradeWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionEstablished(WebSocketSession session) {
         String username = (String) session.getAttributes().get("username");
         if (username == null) {
-            log.warn("WS session without username; closing");
             try { session.close(CloseStatus.NOT_ACCEPTABLE); } catch (Exception ignored) {}
             return;
         }
@@ -46,27 +43,42 @@ public class TradeWebSocketHandler extends TextWebSocketHandler {
                 if (list.isEmpty()) sessionsByUser.remove(username);
             }
         }
-        log.info("WS disconnected: sessionId={}", session.getId());
     }
 
-    /**
-     * Sends an event only to the sessions belonging to {@code username}.
-     */
+    /** Send to one user's sessions. Use for order placement, fills, etc. */
     public void sendToUser(String username, String type, Object data) {
         CopyOnWriteArrayList<WebSocketSession> sessions = sessionsByUser.get(username);
         if (sessions == null || sessions.isEmpty()) return;
+        TextMessage msg = serialize(type, data);
+        if (msg != null) sendAll(sessions, msg);
+    }
 
+    /**
+     * Broadcast to all connected sessions. Used by IBKR callbacks where we
+     * don't yet know which user owns the orderId at callback time.
+     */
+    public void broadcast(String type, Object data) {
+        TextMessage msg = serialize(type, data);
+        if (msg == null) return;
+        sessionsByUser.values().forEach(list -> sendAll(list, msg));
+    }
+
+    private TextMessage serialize(String type, Object data) {
         try {
             String json = objectMapper.writeValueAsString(Map.of("type", type, "data", data));
-            TextMessage msg = new TextMessage(json);
-            for (WebSocketSession s : sessions) {
-                if (s.isOpen()) {
-                    try { s.sendMessage(msg); }
-                    catch (Exception e) { log.warn("WS send failed: {}", e.getMessage()); }
-                }
-            }
+            return new TextMessage(json);
         } catch (Exception e) {
-            log.error("WS broadcast serialization error", e);
+            log.error("WS serialization error", e);
+            return null;
+        }
+    }
+
+    private void sendAll(CopyOnWriteArrayList<WebSocketSession> sessions, TextMessage msg) {
+        for (WebSocketSession s : sessions) {
+            if (s.isOpen()) {
+                try { s.sendMessage(msg); }
+                catch (Exception e) { log.warn("WS send failed: {}", e.getMessage()); }
+            }
         }
     }
 }

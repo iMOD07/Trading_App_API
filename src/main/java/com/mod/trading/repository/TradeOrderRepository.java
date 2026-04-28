@@ -18,16 +18,17 @@ public interface TradeOrderRepository extends JpaRepository<TradeOrder, Long> {
 
     Page<TradeOrder> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
-    Page<TradeOrder> findByUserIdAndSymbolOrderByCreatedAtDesc(Long userId, String symbol, Pageable pageable);
+    Page<TradeOrder> findByUserIdAndSymbolOrderByCreatedAtDesc(
+            Long userId, String symbol, Pageable pageable);
 
     List<TradeOrder> findTop10ByUserIdOrderByCreatedAtDesc(Long userId);
 
     Optional<TradeOrder> findByClientOrderId(String clientOrderId);
 
-    /**
-     * Sum of stop-loss based potential losses for orders created today.
-     * Used for daily loss limit enforcement.
-     */
+    Optional<TradeOrder> findByIbkrParentOrderId(Integer parentId);
+
+    Optional<TradeOrder> findByIbkrPermId(Long permId);
+
     @Query("SELECT COALESCE(SUM((o.entryPrice - o.stopLoss) * o.qty), 0) " +
            "FROM TradeOrder o " +
            "WHERE o.user.id = :userId " +

@@ -15,6 +15,7 @@ public class UserDto {
     private String username;
     private boolean active;
     private Role role;
+    private String ibkrAccountId;
     private BigDecimal tradeAmount;
     private BigDecimal rangeValue;
     private BigDecimal profitPercent;
@@ -28,6 +29,7 @@ public class UserDto {
                 .username(user.getUsername())
                 .active(user.isActive())
                 .role(user.getRole())
+                .ibkrAccountId(user.getIbkrAccountId())
                 .tradeAmount(user.getTradeAmount())
                 .rangeValue(user.getRangeValue())
                 .profitPercent(user.getProfitPercent())

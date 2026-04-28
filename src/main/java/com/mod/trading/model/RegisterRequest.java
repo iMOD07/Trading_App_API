@@ -17,13 +17,11 @@ public class RegisterRequest {
     @Size(min = 8, max = 100, message = "Password must be 8-100 characters")
     private String password;
 
-    @NotBlank
-    private String alpacaApiKey;
-
-    @NotBlank
-    private String alpacaApiSecret;
-
-    @Pattern(regexp = "^https://(paper-api|api)\\.alpaca\\.markets$",
-             message = "Base URL must be a valid Alpaca endpoint")
-    private String alpacaBaseUrl = "https://paper-api.alpaca.markets";
+    /**
+     * Optional IBKR sub-account (e.g. "U1234567" for live, "DU..." for paper).
+     * Required only if the operator's IB Gateway logs into a Financial Advisor
+     * master account with multiple sub-accounts.
+     */
+    @Pattern(regexp = "^(U|DU)\\d{6,10}$|^$", message = "IBKR account must look like U1234567 or DU1234567")
+    private String ibkrAccountId;
 }

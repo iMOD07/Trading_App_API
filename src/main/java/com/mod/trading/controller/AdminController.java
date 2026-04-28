@@ -27,58 +27,55 @@ public class AdminController {
 
     @GetMapping("/users")
     public ResponseEntity<List<UserDto>> getAllUsers() {
-        List<UserDto> users = userRepository.findAll().stream()
-                .map(UserDto::from)
-                .toList();
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(userRepository.findAll().stream().map(UserDto::from).toList());
     }
 
     @PostMapping("/users/{id}/activate")
     @Transactional
-    public ResponseEntity<Map<String, String>> activateUser(@PathVariable Long id) {
+    public ResponseEntity<Map<String, String>> activate(@PathVariable Long id) {
         return toggleActive(id, true);
     }
 
     @PostMapping("/users/{id}/deactivate")
     @Transactional
-    public ResponseEntity<Map<String, String>> deactivateUser(@PathVariable Long id) {
+    public ResponseEntity<Map<String, String>> deactivate(@PathVariable Long id) {
         return toggleActive(id, false);
     }
 
     @PostMapping("/users/{id}/role")
     @Transactional
     public ResponseEntity<Map<String, String>> changeRole(@PathVariable Long id,
-                                                          @RequestBody RoleChangeRequest request) {
-        User user = userRepository.findById(id)
+                                                          @RequestBody RoleChangeRequest req) {
+        User u = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("id=" + id));
         try {
-            user.setRole(Role.valueOf(request.getRole().toUpperCase()));
+            u.setRole(Role.valueOf(req.getRole().toUpperCase()));
         } catch (IllegalArgumentException e) {
-            throw new BusinessException("Invalid role: " + request.getRole());
+            throw new BusinessException("Invalid role: " + req.getRole());
         }
-        userRepository.save(user);
-        return ResponseEntity.ok(Map.of("message", "Role updated to " + user.getRole()));
+        userRepository.save(u);
+        return ResponseEntity.ok(Map.of("message", "Role updated to " + u.getRole()));
     }
 
     @PostMapping("/users/{id}/trading/{enabled}")
     @Transactional
-    public ResponseEntity<Map<String, String>> setTradingEnabled(@PathVariable Long id,
-                                                                  @PathVariable boolean enabled) {
-        User user = userRepository.findById(id)
+    public ResponseEntity<Map<String, String>> setTrading(@PathVariable Long id,
+                                                          @PathVariable boolean enabled) {
+        User u = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("id=" + id));
-        user.setTradingEnabled(enabled);
-        userRepository.save(user);
+        u.setTradingEnabled(enabled);
+        userRepository.save(u);
         return ResponseEntity.ok(Map.of(
-                "message", "Trading " + (enabled ? "enabled" : "disabled") + " for " + user.getUsername()));
+                "message", "Trading " + (enabled ? "enabled" : "disabled") + " for " + u.getUsername()));
     }
 
     private ResponseEntity<Map<String, String>> toggleActive(Long id, boolean active) {
-        User user = userRepository.findById(id)
+        User u = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("id=" + id));
-        user.setActive(active);
-        userRepository.save(user);
+        u.setActive(active);
+        userRepository.save(u);
         return ResponseEntity.ok(Map.of(
-                "message", "User " + user.getUsername() + " " + (active ? "activated" : "deactivated")));
+                "message", "User " + u.getUsername() + " " + (active ? "activated" : "deactivated")));
     }
 
     @Data

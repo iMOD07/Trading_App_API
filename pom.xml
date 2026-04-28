@@ -5,7 +5,6 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <!-- Stable production version instead of 4.0.2 -->
         <version>3.4.1</version>
         <relativePath/>
     </parent>
@@ -13,15 +12,23 @@
     <groupId>com.mod</groupId>
     <artifactId>trading</artifactId>
     <version>1.0.0</version>
-    <name>Trading Bot By Mohammed</name>
-    <description>Trading shares under certain conditions</description>
+    <name>Trading Bot - IBKR Edition</name>
+    <description>Automated trading via Interactive Brokers TWS API</description>
 
     <properties>
         <java.version>17</java.version>
         <resilience4j.version>2.2.0</resilience4j.version>
+        <tws-api.version>10.30.01</tws-api.version>
     </properties>
 
     <dependencies>
+        <!-- IBKR TWS API - install locally first (see README) -->
+        <dependency>
+            <groupId>com.interactivebrokers</groupId>
+            <artifactId>tws-api</artifactId>
+            <version>${tws-api.version}</version>
+        </dependency>
+
         <!-- Spring Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -71,7 +78,7 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Flyway for DB migrations (replaces ddl-auto=update) -->
+        <!-- Flyway -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
@@ -117,7 +124,7 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Resilience4j: Retry + Circuit Breaker -->
+        <!-- Resilience4j -->
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-spring-boot3</artifactId>

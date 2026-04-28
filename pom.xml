@@ -18,7 +18,7 @@
     <properties>
         <java.version>17</java.version>
         <resilience4j.version>2.2.0</resilience4j.version>
-        <tws-api.version>10.30.01</tws-api.version>
+        <tws-api.version>10.37</tws-api.version>
     </properties>
 
     <dependencies>

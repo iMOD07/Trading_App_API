@@ -3,7 +3,6 @@ package com.mod.trading.model;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -11,15 +10,14 @@ import java.math.BigDecimal;
 @Data
 public class TradeRequest {
 
-    @NotBlank(message = "Symbol required")
-    @Pattern(regexp = "^[A-Z]{1,10}$", message = "Symbol must be 1-10 uppercase letters")
+    @NotBlank(message = "Symbol is required")
     private String symbol;
 
-    @NotNull
-    @DecimalMin(value = "0.01", message = "Entry price must be > 0")
+    @NotNull(message = "Entry price is required")
+    @DecimalMin(value = "0.01", message = "Entry price must be positive")
     private BigDecimal entryPrice;
 
-    @NotNull
-    @DecimalMin(value = "0.01", message = "Stop loss must be > 0")
+    @NotNull(message = "Stop loss is required")
+    @DecimalMin(value = "0.01", message = "Stop loss must be positive")
     private BigDecimal stopLoss;
 }

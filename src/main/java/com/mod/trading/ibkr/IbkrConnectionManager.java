@@ -3,160 +3,126 @@ package com.mod.trading.ibkr;
 import com.ib.client.EClientSocket;
 import com.ib.client.EJavaSignal;
 import com.ib.client.EReader;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
-import lombok.RequiredArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Manages a single TCP socket connection to IB Gateway / TWS.
+ * Manages a single IBKR connection for ONE user.
+ * Each user has their own VPS with IB Gateway running.
  *
- * Lifecycle:
- *   1. Spring starts -> connect() opens socket, starts EReader thread
- *   2. EReader thread reads messages, queues them in EJavaSignal
- *   3. Background thread drains the queue and dispatches to IbkrEventWrapper
- *   4. On disconnect, scheduler retries with exponential backoff
- *
- * Important: TWS API uses a SHARED connection per process. All users in this
- * application share the SAME IB Gateway login. Per-user trading is enforced
- * by application logic (the IBKR account is the operator's, not the end user's).
+ * This class is NOT a Spring bean - it's instantiated per-user
+ * by IbkrConnectionPool.
  */
 @Slf4j
-@Component
-@RequiredArgsConstructor
 public class IbkrConnectionManager {
 
-    private final IbkrEventWrapper eventWrapper;
+    private final String userTag;
+    private final String host;
+    private final int port;
+    private final int clientId;
 
-    @Value("${ibkr.host:127.0.0.1}")
-    private String host;
+    @Getter
+    private final IbkrEventWrapper wrapper;
 
-    @Value("${ibkr.port:4002}")
-    private int port;
-
-    @Value("${ibkr.client-id:1}")
-    private int clientId;
-
-    @Value("${ibkr.connect-on-startup:true}")
-    private boolean connectOnStartup;
-
-    private EClientSocket clientSocket;
-    private EJavaSignal signal;
+    private final EJavaSignal signal;
+    private final EClientSocket clientSocket;
     private EReader reader;
     private Thread readerThread;
-    private Thread messageProcessorThread;
 
-    private final AtomicBoolean running = new AtomicBoolean(false);
-    private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
-
-    @PostConstruct
-    public void init() {
-        if (connectOnStartup) {
-            connect();
-        } else {
-            log.info("IBKR connect-on-startup disabled. Call connect() manually.");
-        }
-    }
-
-    public synchronized void connect() {
-        if (clientSocket != null && clientSocket.isConnected()) {
-            log.info("Already connected to IB Gateway");
-            return;
-        }
-
-        signal = new EJavaSignal();
-        clientSocket = new EClientSocket(eventWrapper, signal);
-        eventWrapper.setClientSocket(clientSocket);
-
-        log.info("Connecting to IB Gateway at {}:{} clientId={}", host, port, clientId);
-        clientSocket.eConnect(host, port, clientId);
-
-        // Wait briefly for handshake
-        try { Thread.sleep(500); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
-
-        if (!clientSocket.isConnected()) {
-            log.error("Failed to connect to IB Gateway. Is it running and API enabled?");
-            scheduleReconnect();
-            return;
-        }
-
-        // Start EReader thread (reads raw bytes from socket)
-        reader = new EReader(clientSocket, signal);
-        reader.start();
-        readerThread = new Thread(reader, "ibkr-ereader");
-        readerThread.setDaemon(true);
-
-        // Start message processor (drains the queue, dispatches to wrapper)
-        running.set(true);
-        messageProcessorThread = new Thread(this::processMessages, "ibkr-msg-processor");
-        messageProcessorThread.setDaemon(true);
-        messageProcessorThread.start();
-
-        reconnectAttempts.set(0);
-        log.info("✅ Connected to IB Gateway");
-    }
-
-    private void processMessages() {
-        while (running.get() && clientSocket.isConnected()) {
-            signal.waitForSignal();
-            try {
-                reader.processMsgs();
-            } catch (Exception e) {
-                log.error("Error processing IBKR message", e);
-            }
-        }
-        log.info("Message processor exiting");
+    public IbkrConnectionManager(String userTag, String host, int port, int clientId) {
+        this.userTag = userTag;
+        this.host = host;
+        this.port = port;
+        this.clientId = clientId;
+        this.wrapper = new IbkrEventWrapper(userTag);
+        this.signal = new EJavaSignal();
+        this.clientSocket = new EClientSocket(wrapper, signal);
     }
 
     /**
-     * Called by IbkrEventWrapper when the connection drops.
+     * Connect to user's IB Gateway. Blocks until connected or fails.
+     * Returns true if successful.
      */
-    public void onDisconnected() {
-        log.warn("Disconnected from IB Gateway");
-        running.set(false);
-        scheduleReconnect();
+    public synchronized boolean connect() {
+        if (isConnected()) {
+            log.debug("[{}] Already connected", userTag);
+            return true;
+        }
+
+        log.info("[{}] Connecting to IB Gateway at {}:{} (clientId={})",
+                userTag, host, port, clientId);
+
+        try {
+            clientSocket.eConnect(host, port, clientId);
+
+            if (!clientSocket.isConnected()) {
+                log.error("[{}] Failed to connect to {}:{}", userTag, host, port);
+                return false;
+            }
+
+            // Start reader thread
+            reader = new EReader(clientSocket, signal);
+            reader.start();
+
+            readerThread = new Thread(() -> {
+                while (clientSocket.isConnected()) {
+                    signal.waitForSignal();
+                    try {
+                        reader.processMsgs();
+                    } catch (Exception e) {
+                        log.error("[{}] Error processing message", userTag, e);
+                    }
+                }
+            }, "ibkr-reader-" + userTag);
+            readerThread.setDaemon(true);
+            readerThread.start();
+
+            // Wait for nextValidId callback (max 5 seconds)
+            int waited = 0;
+            while (!wrapper.hasNextOrderId() && waited < 5000) {
+                Thread.sleep(100);
+                waited += 100;
+            }
+
+            if (!wrapper.hasNextOrderId()) {
+                log.error("[{}] Timeout waiting for nextValidId", userTag);
+                disconnect();
+                return false;
+            }
+
+            log.info("[{}] Connected successfully", userTag);
+            return true;
+
+        } catch (Exception e) {
+            log.error("[{}] Connect failed", userTag, e);
+            disconnect();
+            return false;
+        }
     }
 
-    private void scheduleReconnect() {
-        int attempt = reconnectAttempts.incrementAndGet();
-        long delaySeconds = Math.min(60, (long) Math.pow(2, Math.min(attempt, 6)));
-        log.info("Scheduling reconnect attempt #{} in {}s", attempt, delaySeconds);
-
-        Thread t = new Thread(() -> {
-            try {
-                Thread.sleep(delaySeconds * 1000);
-                if (!isConnected()) connect();
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
+    public synchronized void disconnect() {
+        try {
+            if (clientSocket != null && clientSocket.isConnected()) {
+                clientSocket.eDisconnect();
             }
-        }, "ibkr-reconnect-" + attempt);
-        t.setDaemon(true);
-        t.start();
+            if (readerThread != null) {
+                readerThread.interrupt();
+            }
+            log.info("[{}] Disconnected", userTag);
+        } catch (Exception e) {
+            log.error("[{}] Error during disconnect", userTag, e);
+        }
     }
 
     public boolean isConnected() {
-        return clientSocket != null && clientSocket.isConnected();
+        return clientSocket != null && clientSocket.isConnected() && wrapper.isConnected();
     }
 
-    public EClientSocket getClient() {
-        if (!isConnected()) {
-            throw new IllegalStateException("Not connected to IB Gateway");
-        }
+    public EClientSocket getClientSocket() {
         return clientSocket;
     }
 
-    @PreDestroy
-    public synchronized void shutdown() {
-        log.info("Shutting down IBKR connection");
-        running.set(false);
-        if (clientSocket != null && clientSocket.isConnected()) {
-            clientSocket.eDisconnect();
-        }
-        if (messageProcessorThread != null) messageProcessorThread.interrupt();
+    public String getUserTag() {
+        return userTag;
     }
 }

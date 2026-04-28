@@ -2,20 +2,17 @@ package com.mod.trading.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Getter
-@Setter
+@Data
 @Entity
-@Table(name = "users", indexes = {
-        @Index(name = "idx_users_username", columnList = "username", unique = true)
-})
+@Table(name = "users")
 public class User {
 
     @Id
@@ -36,40 +33,51 @@ public class User {
     @Column(nullable = false, length = 20)
     private Role role = Role.USER;
 
-    /**
-     * IBKR account number (e.g. "U1234567" or "DU1234567" for paper).
-     * The IB Gateway handles authentication via the operator's credentials,
-     * NOT per-user. This field tells us WHICH sub-account to trade in for
-     * Financial Advisor / multi-account setups.
-     *
-     * For a single-account setup, this can be null and trades go to the
-     * default account.
-     */
-    @Column(name = "ibkr_account_id", length = 50)
-    private String ibkrAccountId;
+    // ===== IBKR Connection Settings =====
+    // Each user has their own VPS running IB Gateway
+    @Column(name = "ibkr_host")
+    private String ibkrHost;                  // "45.32.123.45" or VPN address
 
-    // Trading parameters - BigDecimal for monetary precision
-    @Column(name = "trade_amount", precision = 19, scale = 4, nullable = false)
-    private BigDecimal tradeAmount = new BigDecimal("500.0000");
+    @Column(name = "ibkr_port")
+    private Integer ibkrPort = 4002;          // 4002=Paper, 4001=Live
 
-    @Column(name = "range_value", precision = 19, scale = 4, nullable = false)
+    @Column(name = "ibkr_client_id")
+    private Integer ibkrClientId = 1;         // Inside the Gateway
+
+    @Column(name = "ibkr_account_id", length = 20)
+    private String ibkrAccountId;             // U1234567 (Live) or DU1234567 (Paper)
+
+    @Column(name = "ibkr_paper_trading", nullable = false)
+    private boolean ibkrPaperTrading = true;  // Safety default
+
+    // ===== Trading Settings =====
+    @Column(name = "trade_amount", precision = 15, scale = 2)
+    private BigDecimal tradeAmount = new BigDecimal("500.00");
+
+    @Column(name = "range_value", precision = 10, scale = 4)
     private BigDecimal rangeValue = new BigDecimal("0.0100");
 
-    @Column(name = "profit_percent", precision = 19, scale = 4, nullable = false)
-    private BigDecimal profitPercent = new BigDecimal("6.0000");
-
-    // Risk controls
-    @Column(name = "daily_loss_limit", precision = 19, scale = 4)
-    private BigDecimal dailyLossLimit = new BigDecimal("1000.0000");
-
-    @Column(name = "trading_enabled", nullable = false)
-    private boolean tradingEnabled = true;
+    @Column(name = "profit_percent", precision = 5, scale = 2)
+    private BigDecimal profitPercent = new BigDecimal("6.00");
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     @JsonIgnore
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<TradeOrder> orders;
+
+    /**
+     * Check if user has fully configured IBKR connection.
+     */
+    public boolean isIbkrConfigured() {
+        return ibkrHost != null && !ibkrHost.isBlank()
+                && ibkrPort != null
+                && ibkrAccountId != null && !ibkrAccountId.isBlank();
+    }
 }

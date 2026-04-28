@@ -10,5 +10,5 @@ public class AuthResponse {
     private String token;
     private String username;
     private Role role;
-    private long expiresIn;
+    private boolean ibkrConfigured;  // Hint for Flutter to show config screen
 }

@@ -2,23 +2,16 @@ package com.mod.trading.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Getter
-@Setter
+@Data
 @Entity
-@Table(name = "trade_orders", indexes = {
-        @Index(name = "idx_orders_user_created", columnList = "user_id, created_at DESC"),
-        @Index(name = "idx_orders_user_symbol", columnList = "user_id, symbol"),
-        @Index(name = "idx_orders_parent", columnList = "ibkr_parent_order_id"),
-        @Index(name = "idx_orders_perm", columnList = "ibkr_perm_id"),
-        @Index(name = "idx_orders_client_order_id", columnList = "client_order_id", unique = true)
-})
+@Table(name = "trade_orders")
 public class TradeOrder {
 
     @Id
@@ -30,46 +23,35 @@ public class TradeOrder {
     @JsonIgnore
     private User user;
 
-    /**
-     * Our internal correlation ID. Survives across reconnects.
-     * IBKR's permId serves a similar role on their side.
-     */
-    @Column(name = "client_order_id", nullable = false, unique = true, length = 64)
-    private String clientOrderId;
-
     @Column(nullable = false, length = 20)
     private String symbol;
 
     @Column(nullable = false)
-    private int qty;
+    private Integer qty;
 
-    @Column(name = "entry_price", precision = 19, scale = 4)
+    @Column(name = "entry_price", precision = 15, scale = 4, nullable = false)
     private BigDecimal entryPrice;
 
-    @Column(name = "trade_amount", precision = 19, scale = 4)
+    @Column(name = "trade_amount", precision = 15, scale = 2, nullable = false)
     private BigDecimal tradeAmount;
 
-    @Column(name = "profit_percent", precision = 19, scale = 4)
+    @Column(name = "profit_percent", precision = 5, scale = 2, nullable = false)
     private BigDecimal profitPercent;
 
-    @Column(name = "stop_price", precision = 19, scale = 4)
+    @Column(name = "stop_price", precision = 15, scale = 4)
     private BigDecimal stopPrice;
 
-    @Column(name = "limit_price", precision = 19, scale = 4)
+    @Column(name = "limit_price", precision = 15, scale = 4)
     private BigDecimal limitPrice;
 
-    @Column(name = "take_profit", precision = 19, scale = 4)
+    @Column(name = "take_profit", precision = 15, scale = 4)
     private BigDecimal takeProfit;
 
-    @Column(name = "stop_loss", precision = 19, scale = 4)
+    @Column(name = "stop_loss", precision = 15, scale = 4, nullable = false)
     private BigDecimal stopLoss;
 
-    /**
-     * IBKR's bracket order is 3 linked orders.
-     * - parent: STP LMT entry (BUY)
-     * - takeProfit: LMT exit (SELL)
-     * - stopLoss: STP exit (SELL)
-     */
+    // ===== IBKR specific =====
+    // Bracket order = 3 linked orders
     @Column(name = "ibkr_parent_order_id")
     private Integer ibkrParentOrderId;
 
@@ -79,25 +61,21 @@ public class TradeOrder {
     @Column(name = "ibkr_stop_loss_order_id")
     private Integer ibkrStopLossOrderId;
 
-    /**
-     * IBKR's permanent ID - survives reconnects and identifies the order
-     * uniquely across the IBKR system. Use this for reconciliation.
-     */
     @Column(name = "ibkr_perm_id")
     private Long ibkrPermId;
 
     @Column(name = "order_status", length = 50)
-    private String orderStatus;
+    private String orderStatus = "PENDING";
+
+    // For idempotency - prevents duplicate orders
+    @Column(name = "client_order_id", unique = true, length = 100)
+    private String clientOrderId;
 
     @CreationTimestamp
-    @Column(name = "created_at", updatable = false, nullable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    @PreUpdate
-    public void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 }

@@ -8,5 +8,6 @@ public class TradingApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(TradingApplication.class, args);
+        System.out.println("last");
     }
 }

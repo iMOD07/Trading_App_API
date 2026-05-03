@@ -5,13 +5,14 @@ import com.ib.client.EJavaSignal;
 import com.ib.client.EReader;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 
 /**
  * Manages a single IBKR connection for ONE user.
  * Each user has their own VPS with IB Gateway running.
  *
  * This class is NOT a Spring bean - it's instantiated per-user
- * by IbkrConnectionPool.
+ * by IbkrConnectionPool, which passes in the shared {@link ApplicationEventPublisher}.
  */
 @Slf4j
 public class IbkrConnectionManager {
@@ -29,12 +30,13 @@ public class IbkrConnectionManager {
     private EReader reader;
     private Thread readerThread;
 
-    public IbkrConnectionManager(String userTag, String host, int port, int clientId) {
+    public IbkrConnectionManager(String userTag, String host, int port, int clientId,
+                                 ApplicationEventPublisher eventPublisher) {
         this.userTag = userTag;
         this.host = host;
         this.port = port;
         this.clientId = clientId;
-        this.wrapper = new IbkrEventWrapper(userTag);
+        this.wrapper = new IbkrEventWrapper(userTag, eventPublisher);
         this.signal = new EJavaSignal();
         this.clientSocket = new EClientSocket(wrapper, signal);
     }
@@ -126,3 +128,4 @@ public class IbkrConnectionManager {
         return userTag;
     }
 }
+

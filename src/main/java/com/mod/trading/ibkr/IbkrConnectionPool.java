@@ -2,7 +2,9 @@ package com.mod.trading.ibkr;
 
 import com.mod.trading.entity.User;
 import jakarta.annotation.PreDestroy;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -19,8 +21,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class IbkrConnectionPool {
 
+    private final ApplicationEventPublisher eventPublisher;
     private final Map<Long, IbkrConnectionManager> connections = new ConcurrentHashMap<>();
 
     /**
@@ -30,8 +34,8 @@ public class IbkrConnectionPool {
     public synchronized IbkrConnectionManager getConnection(User user) {
         if (!user.isIbkrConfigured()) {
             throw new IbkrException(
-                "User '" + user.getUsername() + "' has not configured IBKR settings. " +
-                "Admin must set ibkrHost, ibkrPort, and ibkrAccountId."
+                    "User '" + user.getUsername() + "' has not configured IBKR settings. " +
+                            "Admin must set ibkrHost, ibkrPort, and ibkrAccountId."
             );
         }
 
@@ -49,19 +53,20 @@ public class IbkrConnectionPool {
             connections.remove(user.getId());
         }
 
-        // Create new connection
+        // Create new connection (publisher passed through to wrapper for status sync)
         IbkrConnectionManager manager = new IbkrConnectionManager(
                 user.getUsername(),
                 user.getIbkrHost(),
                 user.getIbkrPort(),
-                user.getIbkrClientId()
+                user.getIbkrClientId(),
+                eventPublisher
         );
 
         if (!manager.connect()) {
             throw new IbkrException(
-                "Failed to connect to IB Gateway for user '" + user.getUsername() + "' " +
-                "at " + user.getIbkrHost() + ":" + user.getIbkrPort() + ". " +
-                "Check VPS is running and IB Gateway is logged in."
+                    "Failed to connect to IB Gateway for user '" + user.getUsername() + "' " +
+                            "at " + user.getIbkrHost() + ":" + user.getIbkrPort() + ". " +
+                            "Check VPS is running and IB Gateway is logged in."
             );
         }
 
